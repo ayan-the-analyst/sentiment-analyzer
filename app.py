@@ -4,6 +4,7 @@ import warnings
 import traceback
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import nltk
 import numpy as np
 import pandas as pd
@@ -20,122 +21,547 @@ warnings.filterwarnings("ignore")
 MAX_BYTES = 50 * 1024 * 1024
 MAX_ROWS  = 100_000
 
-PALETTE = {
-    "Positive": "#22c55e",
-    "Neutral":  "#f59e0b",
-    "Negative": "#ef4444",
-}
-
-CUSTOM_CSS = """
+# ─────────────────────────────────────────────
+# CSS  — dark editorial dashboard
+# ─────────────────────────────────────────────
+CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Outfit:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
-html, body, [class*="css"] { font-family: 'IBM Plex Sans', sans-serif; }
+/* ── Reset & base ─────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.stApp { background: #f8f9fb; color: #1a1a2e; }
-
-section[data-testid="stSidebar"] {
-    background: #ffffff;
-    border-right: 1px solid #e5e7eb;
+html, body, [class*="css"] {
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
 }
 
-.page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: #1a1a2e;
-    letter-spacing: -0.03em;
-    margin-bottom: 0.15rem;
-}
-.page-sub {
-    color: #6b7280;
-    font-size: 0.88rem;
-    margin-bottom: 1.4rem;
+/* ── App shell ───────────────────────────── */
+.stApp {
+    background: #0c0e14;
+    color: #c9d1e0;
+    min-height: 100vh;
 }
 
-.rule-box {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-left: 3px solid #6366f1;
-    border-radius: 8px;
-    padding: 0.85rem 1.1rem;
-    font-size: 0.82rem;
-    color: #6b7280;
-    margin-bottom: 1.2rem;
-    line-height: 1.75;
+/* ── Hide Streamlit chrome ───────────────── */
+#MainMenu, footer, header { visibility: hidden; }
+.block-container {
+    padding: 0 2.5rem 3rem !important;
+    max-width: 1200px !important;
 }
-.rule-box b { color: #374151; }
 
-.section-label {
+/* ── Sidebar ─────────────────────────────── */
+section[data-testid="stSidebar"] { display: none; }
+
+/* ── Hero bar ────────────────────────────── */
+.hero {
+    position: relative;
+    padding: 3rem 0 2.2rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #1e2330;
+    overflow: hidden;
+}
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -10%; right: -10%; height: 2px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        #e8a020 20%,
+        #f0c060 50%,
+        #e8a020 80%,
+        transparent 100%
+    );
+    animation: shimmer 4s ease-in-out infinite;
+}
+@keyframes shimmer {
+    0%, 100% { opacity: 0.5; }
+    50%       { opacity: 1;   }
+}
+
+.hero-eyebrow {
+    font-family: 'DM Mono', monospace;
     font-size: 0.68rem;
-    font-weight: 600;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #9ca3af;
-    margin: 1.5rem 0 0.45rem;
+    color: #e8a020;
+    margin-bottom: 0.7rem;
 }
-
-.metric-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 0.85rem 1rem;
-    text-align: center;
-}
-.metric-card .m-label {
-    font-size: 0.67rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #9ca3af;
-    margin-bottom: 0.28rem;
-}
-.metric-card .m-value {
-    font-size: 1.65rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
+.hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 3rem;
+    font-weight: 800;
     line-height: 1;
+    color: #f0f4ff;
+    letter-spacing: -0.04em;
+    margin-bottom: 0.7rem;
 }
-.metric-card .m-pct {
-    font-size: 0.73rem;
-    color: #9ca3af;
-    margin-top: 0.18rem;
+.hero-sub {
+    font-size: 0.92rem;
+    color: #5a6480;
+    max-width: 520px;
+    line-height: 1.65;
+    font-weight: 300;
 }
 
-.stDownloadButton > button {
-    background: #1a1a2e;
-    color: #ffffff;
-    border: none;
-    border-radius: 7px;
-    font-weight: 500;
+/* ── Section label ───────────────────────── */
+.label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #3d4560;
+    margin: 2rem 0 0.55rem;
+}
+
+/* ── Info strip (upload rules) ───────────── */
+.info-strip {
+    display: flex;
+    gap: 0;
+    border: 1px solid #1e2330;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1.4rem;
+    background: #0f111a;
+}
+.info-cell {
+    flex: 1;
+    padding: 0.85rem 1.1rem;
+    border-right: 1px solid #1e2330;
+}
+.info-cell:last-child { border-right: none; }
+.info-cell .ic-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #3d4560;
+    margin-bottom: 0.3rem;
+}
+.info-cell .ic-value {
     font-size: 0.85rem;
-    padding: 0.5rem 1.4rem;
+    font-weight: 500;
+    color: #8b95b0;
 }
-.stDownloadButton > button:hover { background: #2d2d4e; }
 
+/* ── File uploader ───────────────────────── */
+[data-testid="stFileUploadDropzone"] {
+    background: #0f111a !important;
+    border: 1.5px dashed #252a3a !important;
+    border-radius: 12px !important;
+    transition: border-color 0.25s, background 0.25s;
+}
+[data-testid="stFileUploadDropzone"]:hover {
+    border-color: #e8a020 !important;
+    background: #12141f !important;
+}
+[data-testid="stFileUploadDropzone"] p {
+    color: #3d4560 !important;
+    font-size: 0.85rem !important;
+}
+[data-testid="stFileUploadDropzone"] svg { stroke: #3d4560 !important; }
+
+/* ── Select box ──────────────────────────── */
+[data-baseweb="select"] > div {
+    background: #0f111a !important;
+    border: 1px solid #1e2330 !important;
+    border-radius: 8px !important;
+    color: #c9d1e0 !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 0.88rem !important;
+    transition: border-color 0.2s;
+}
+[data-baseweb="select"] > div:hover,
+[data-baseweb="select"] > div:focus-within {
+    border-color: #e8a020 !important;
+}
+[data-baseweb="select"] svg { fill: #3d4560 !important; }
+
+/* Select dropdown menu */
+[data-baseweb="popover"] [role="listbox"] {
+    background: #0f111a !important;
+    border: 1px solid #1e2330 !important;
+    border-radius: 8px !important;
+}
+[data-baseweb="popover"] [role="option"] {
+    color: #8b95b0 !important;
+    font-size: 0.88rem !important;
+    background: transparent !important;
+}
+[data-baseweb="popover"] [role="option"]:hover {
+    background: #161926 !important;
+    color: #e8a020 !important;
+}
+
+/* ── Primary button ──────────────────────── */
 .stButton > button {
-    border-radius: 7px;
-    font-weight: 500;
-    font-size: 0.85rem;
+    background: #e8a020 !important;
+    color: #0c0e14 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    padding: 0.6rem 2rem !important;
+    letter-spacing: 0.02em;
+    transition: background 0.2s, transform 0.15s;
+    cursor: pointer;
+}
+.stButton > button:hover {
+    background: #f0b030 !important;
+    transform: translateY(-1px);
+}
+.stButton > button:active { transform: translateY(0); }
+
+/* ── Download button ─────────────────────── */
+.stDownloadButton > button {
+    background: transparent !important;
+    color: #e8a020 !important;
+    border: 1.5px solid #e8a020 !important;
+    border-radius: 8px !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 0.85rem !important;
+    padding: 0.55rem 1.6rem !important;
+    transition: background 0.2s, color 0.2s;
+}
+.stDownloadButton > button:hover {
+    background: #e8a020 !important;
+    color: #0c0e14 !important;
 }
 
-div[data-testid="stDataFrame"] { border-radius: 8px; }
+/* ── Progress bar ────────────────────────── */
+[data-testid="stProgress"] > div > div > div {
+    background: linear-gradient(90deg, #e8a020, #f0c060) !important;
+    border-radius: 999px !important;
+}
+[data-testid="stProgress"] > div > div {
+    background: #1e2330 !important;
+    border-radius: 999px !important;
+    height: 4px !important;
+}
+
+/* ── Alerts ──────────────────────────────── */
+[data-testid="stAlert"] {
+    background: #0f111a !important;
+    border: 1px solid #1e2330 !important;
+    border-radius: 10px !important;
+    color: #8b95b0 !important;
+    font-size: 0.85rem !important;
+}
+.stSuccess > div {
+    background: #0c1810 !important;
+    border-color: #1a4025 !important;
+    color: #4ade80 !important;
+}
+.stError > div {
+    background: #180c0c !important;
+    border-color: #401a1a !important;
+    color: #f87171 !important;
+}
+
+/* ── Metric cards ────────────────────────── */
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.75rem;
+    margin: 0.5rem 0 1.5rem;
+}
+.mc {
+    background: #0f111a;
+    border: 1px solid #1e2330;
+    border-radius: 12px;
+    padding: 1.1rem 1rem 1rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.mc:hover { border-color: #2a3050; }
+.mc::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+}
+.mc.pos::after { background: #22c55e; }
+.mc.neu::after { background: #e8a020; }
+.mc.neg::after { background: #ef4444; }
+.mc.tot::after { background: #6366f1; }
+.mc.avg::after { background: #38bdf8; }
+
+.mc-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: #3d4560;
+    margin-bottom: 0.55rem;
+}
+.mc-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #f0f4ff;
+    margin-bottom: 0.3rem;
+}
+.mc-sub {
+    font-size: 0.72rem;
+    color: #3d4560;
+    font-weight: 400;
+}
+.mc.pos .mc-value { color: #22c55e; }
+.mc.neg .mc-value { color: #ef4444; }
+.mc.neu .mc-value { color: #e8a020; }
+.mc.avg .mc-value { color: #38bdf8; }
+
+/* ── DataFrame ───────────────────────────── */
+[data-testid="stDataFrame"] {
+    border: 1px solid #1e2330 !important;
+    border-radius: 10px !important;
+    overflow: hidden;
+}
+[data-testid="stDataFrame"] iframe { background: #0f111a !important; }
+
+/* ── Tabs ────────────────────────────────── */
+[data-baseweb="tab-list"] {
+    background: transparent !important;
+    border-bottom: 1px solid #1e2330 !important;
+    gap: 0 !important;
+}
+[data-baseweb="tab"] {
+    background: transparent !important;
+    color: #3d4560 !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    padding: 0.6rem 1.2rem !important;
+    border-bottom: 2px solid transparent !important;
+    transition: color 0.2s, border-color 0.2s;
+}
+[data-baseweb="tab"]:hover { color: #8b95b0 !important; }
+[aria-selected="true"][data-baseweb="tab"] {
+    color: #e8a020 !important;
+    border-bottom-color: #e8a020 !important;
+}
+[data-baseweb="tab-panel"] { padding: 1.2rem 0 0 !important; }
+
+/* ── Spinner ─────────────────────────────── */
+.stSpinner > div > div {
+    border-color: #e8a020 transparent transparent transparent !important;
+}
+
+/* ── Scrollbar ───────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #0c0e14; }
+::-webkit-scrollbar-thumb { background: #1e2330; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #2a3050; }
+
+/* ── Preview table wrapper ───────────────── */
+.preview-wrap {
+    background: #0f111a;
+    border: 1px solid #1e2330;
+    border-radius: 10px;
+    padding: 0.1rem;
+    overflow: hidden;
+}
+
+/* ── Divider ─────────────────────────────── */
+.divider {
+    height: 1px;
+    background: #1e2330;
+    margin: 2rem 0;
+}
 </style>
 """
 
 # ─────────────────────────────────────────────
-# NLP SETUP
+# PLOT THEME  (matches dark UI)
+# ─────────────────────────────────────────────
+BG      = "#0c0e14"
+CARD    = "#0f111a"
+BORDER  = "#1e2330"
+INK     = "#8b95b0"
+INK2    = "#3d4560"
+GOLD    = "#e8a020"
+GREEN   = "#22c55e"
+RED     = "#ef4444"
+AMBER   = "#f59e0b"
+
+SENT_COLORS = {"Positive": GREEN, "Neutral": AMBER, "Negative": RED}
+
+def _apply_theme(fig, axes):
+    fig.patch.set_facecolor(BG)
+    for ax in (axes if hasattr(axes, "__iter__") else [axes]):
+        ax.set_facecolor(CARD)
+        for sp in ax.spines.values():
+            sp.set_edgecolor(BORDER)
+        ax.tick_params(colors=INK, labelsize=8.5)
+        ax.xaxis.label.set_color(INK)
+        ax.yaxis.label.set_color(INK)
+        ax.title.set_color("#c9d1e0")
+        ax.grid(color=BORDER, linewidth=0.6, linestyle="-", zorder=0)
+        ax.set_axisbelow(True)
+
+
+def chart_distribution(df) -> plt.Figure:
+    counts = (
+        df["Sentiment"]
+        .value_counts()
+        .reindex(["Positive", "Neutral", "Negative"], fill_value=0)
+    )
+    fig, ax = plt.subplots(figsize=(5.5, 3.6))
+    colors = [SENT_COLORS[k] for k in counts.index]
+    bars = ax.bar(counts.index, counts.values,
+                  color=colors, width=0.38,
+                  zorder=3, edgecolor="none",
+                  linewidth=0)
+    # Glow effect — faint wider bar behind
+    for b, c in zip(bars, colors):
+        ax.bar(b.get_x() + b.get_width() / 2,
+               b.get_height(),
+               width=0.55, color=c, alpha=0.12,
+               zorder=2, edgecolor="none")
+    for b, v in zip(bars, counts.values):
+        ax.text(b.get_x() + b.get_width() / 2,
+                b.get_height() + counts.max() * 0.03,
+                f"{v:,}",
+                ha="center", va="bottom",
+                color="#f0f4ff", fontsize=10.5,
+                fontweight="600",
+                fontfamily="Outfit")
+    ax.set_ylabel("Count", labelpad=8, fontsize=8.5)
+    ax.set_title("Sentiment Distribution",
+                 fontsize=11, fontweight="600", pad=14,
+                 fontfamily="Outfit")
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f"{int(x):,}"))
+    _apply_theme(fig, ax)
+    fig.tight_layout(pad=1.4)
+    return fig
+
+
+def chart_histogram(df) -> plt.Figure:
+    fig, ax = plt.subplots(figsize=(5.5, 3.6))
+    n, bins, patches = ax.hist(df["ensemble_score"], bins=45,
+                               color="#6366f1", edgecolor="none",
+                               alpha=0.9, zorder=3)
+    # Colour bars by bucket
+    for patch, left in zip(patches, bins[:-1]):
+        if left >= 0.05:
+            patch.set_facecolor(GREEN)
+            patch.set_alpha(0.85)
+        elif left <= -0.05:
+            patch.set_facecolor(RED)
+            patch.set_alpha(0.85)
+        else:
+            patch.set_facecolor(AMBER)
+            patch.set_alpha(0.85)
+    ax.axvline( 0.05, color="#f0f4ff", lw=1, linestyle="--", alpha=0.3)
+    ax.axvline(-0.05, color="#f0f4ff", lw=1, linestyle="--", alpha=0.3)
+    ax.set_xlabel("Ensemble Score", labelpad=8, fontsize=8.5)
+    ax.set_ylabel("Frequency",      labelpad=8, fontsize=8.5)
+    ax.set_title("Score Distribution",
+                 fontsize=11, fontweight="600", pad=14,
+                 fontfamily="Outfit")
+    _apply_theme(fig, ax)
+    fig.tight_layout(pad=1.4)
+    return fig
+
+
+def chart_confidence(df) -> plt.Figure:
+    ct = (
+        df.groupby(["Sentiment", "Confidence"])
+        .size()
+        .unstack(fill_value=0)
+        .reindex(["Positive", "Neutral", "Negative"])
+    )
+    fig, ax = plt.subplots(figsize=(5.5, 3.6))
+    conf_colors = {"High": "#f0f4ff", "Medium": "#5a6480", "Low": "#2a3050"}
+    bottom = np.zeros(len(ct))
+    for level in ["High", "Medium", "Low"]:
+        if level in ct.columns:
+            vals = ct[level].fillna(0).values
+            ax.bar(ct.index, vals, bottom=bottom,
+                   label=level,
+                   color=[conf_colors[level]] * len(ct),
+                   width=0.38, zorder=3, edgecolor="none")
+            bottom += vals
+    ax.set_ylabel("Count", labelpad=8, fontsize=8.5)
+    ax.set_title("Confidence Breakdown",
+                 fontsize=11, fontweight="600", pad=14,
+                 fontfamily="Outfit")
+    leg = ax.legend(framealpha=0, labelcolor=INK, fontsize=8,
+                    title="Confidence", title_fontsize=8,
+                    loc="upper right")
+    leg.get_title().set_color(INK2)
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f"{int(x):,}"))
+    _apply_theme(fig, ax)
+    fig.tight_layout(pad=1.4)
+    return fig
+
+
+def chart_scatter(df) -> plt.Figure:
+    sample = df.sample(min(800, len(df)), random_state=42)
+    fig, ax = plt.subplots(figsize=(5.5, 3.6))
+    for sent, color in SENT_COLORS.items():
+        mask = sample["Sentiment"] == sent
+        ax.scatter(
+            sample.loc[mask, "ensemble_score"],
+            sample.loc[mask, "subjectivity"],
+            c=color, s=9, alpha=0.55,
+            edgecolors="none", label=sent, zorder=3,
+        )
+    ax.set_xlabel("Ensemble Score",  labelpad=8, fontsize=8.5)
+    ax.set_ylabel("Subjectivity",    labelpad=8, fontsize=8.5)
+    ax.set_title("Score vs Subjectivity",
+                 fontsize=11, fontweight="600", pad=14,
+                 fontfamily="Outfit")
+    leg = ax.legend(framealpha=0, labelcolor=INK, fontsize=8)
+    _apply_theme(fig, ax)
+    fig.tight_layout(pad=1.4)
+    return fig
+
+
+def chart_wordcloud(df, sentiment: str, cmap: str):
+    text = " ".join(
+        df.loc[df["Sentiment"] == sentiment, "_clean_"].dropna().tolist()
+    )
+    if not text.strip():
+        return None
+    wc = WordCloud(
+        width=640, height=300,
+        background_color="#0f111a",
+        colormap=cmap,
+        max_words=110,
+        collocations=False,
+        stopwords=STOPWORDS,
+        prefer_horizontal=0.8,
+    ).generate(text)
+    fig, ax = plt.subplots(figsize=(5.5, 2.9))
+    ax.imshow(wc, interpolation="bilinear")
+    ax.axis("off")
+    color_map = {"Positive": GREEN, "Negative": RED, "Neutral": AMBER}
+    ax.set_title(
+        f"{sentiment} · Word Frequency",
+        fontsize=10.5, fontweight="600", pad=10,
+        color=color_map.get(sentiment, "#c9d1e0"),
+        fontfamily="Outfit",
+    )
+    fig.patch.set_facecolor(BG)
+    fig.tight_layout(pad=0.4)
+    return fig
+
+
+# ─────────────────────────────────────────────
+# NLP
 # ─────────────────────────────────────────────
 
 @st.cache_resource(show_spinner=False)
-def load_sia() -> SentimentIntensityAnalyzer:
+def load_sia():
     for pkg in ("vader_lexicon", "stopwords", "punkt", "punkt_tab"):
         nltk.download(pkg, quiet=True)
     return SentimentIntensityAnalyzer()
 
-
-# ─────────────────────────────────────────────
-# TEXT CLEANING
-# ─────────────────────────────────────────────
 
 _HTML  = re.compile(r"<[^>]+>")
 _URL   = re.compile(r"https?://\S+|www\.\S+")
@@ -149,15 +575,10 @@ def clean(raw) -> str:
         return ""
     t = _HTML.sub(" ", t)
     t = _URL.sub(" ", t)
-    t = _SPACE.sub(" ", t).strip()
-    return t
+    return _SPACE.sub(" ", t).strip()
 
 
-# ─────────────────────────────────────────────
-# SCORING  (VADER 55% + TextBlob 45%)
-# ─────────────────────────────────────────────
-
-def score_row(text: str, sia: SentimentIntensityAnalyzer) -> dict:
+def score_row(text: str, sia) -> dict:
     v        = sia.polarity_scores(text)
     tb       = TextBlob(text).sentiment
     ensemble = round(0.55 * v["compound"] + 0.45 * tb.polarity, 4)
@@ -172,16 +593,16 @@ def score_row(text: str, sia: SentimentIntensityAnalyzer) -> dict:
         "Low"
     )
     return {
-        "vader_score":    round(v["compound"], 4),
-        "textblob_score": round(tb.polarity,  4),
-        "subjectivity":   round(tb.subjectivity, 4),
+        "vader_score":    round(v["compound"],      4),
+        "textblob_score": round(tb.polarity,        4),
+        "subjectivity":   round(tb.subjectivity,    4),
         "ensemble_score": ensemble,
         "Sentiment":      sentiment,
         "Confidence":     confidence,
     }
 
 
-def analyse(df: pd.DataFrame, col: str, sia, bar, status) -> pd.DataFrame:
+def analyse(df, col, sia, bar, status):
     n, rows = len(df), []
     for i, raw in enumerate(df[col]):
         t = clean(raw)
@@ -193,25 +614,25 @@ def analyse(df: pd.DataFrame, col: str, sia, bar, status) -> pd.DataFrame:
         )
         if (i + 1) % 500 == 0 or (i + 1) == n:
             bar.progress((i + 1) / n)
-            status.text(f"Processed {i + 1:,} of {n:,} rows")
-
+            status.markdown(
+                f"<span style='font-family:DM Mono,monospace;font-size:0.75rem;"
+                f"color:#3d4560;'>{i + 1:,} / {n:,} rows processed</span>",
+                unsafe_allow_html=True,
+            )
     result = pd.concat([df.reset_index(drop=True), pd.DataFrame(rows)], axis=1)
-    # Store clean text for word clouds only (not exported)
     result["_clean_"] = [clean(r) for r in df[col]]
     return result
 
 
 # ─────────────────────────────────────────────
-# FILE READING
+# FILE I/O
 # ─────────────────────────────────────────────
 
 def read_file(f):
     if f.size > MAX_BYTES:
-        return None, f"File is {f.size / 1e6:.1f} MB — the 50 MB limit is exceeded."
-
+        return None, f"File is {f.size / 1e6:.1f} MB — exceeds the 50 MB limit."
     name = f.name.lower()
     buf  = io.BytesIO(f.read())
-
     try:
         if name.endswith(".csv"):
             for enc in ("utf-8", "utf-8-sig", "latin-1", "cp1252"):
@@ -222,119 +643,24 @@ def read_file(f):
                 except (UnicodeDecodeError, pd.errors.ParserError):
                     continue
             else:
-                return None, "CSV could not be decoded. Please save the file as UTF-8."
+                return None, "Could not decode CSV. Save as UTF-8 and retry."
         elif name.endswith((".xlsx", ".xls")):
             engine = "openpyxl" if name.endswith(".xlsx") else "xlrd"
             df = pd.read_excel(buf, engine=engine)
         else:
-            return None, "Unsupported format. Upload a CSV, XLSX, or XLS file."
+            return None, "Unsupported format. Upload CSV, XLSX, or XLS."
     except Exception as e:
         return None, f"Read error: {e}"
-
     df = df.dropna(how="all").reset_index(drop=True)
     if df.empty:
-        return None, "The uploaded file is empty."
+        return None, "File is empty."
     if len(df) > MAX_ROWS:
-        return None, (
-            f"The file has {len(df):,} rows. "
-            f"The maximum allowed is {MAX_ROWS:,} rows."
-        )
+        return None, f"File has {len(df):,} rows — maximum is {MAX_ROWS:,}."
     return df, ""
 
 
 # ─────────────────────────────────────────────
-# PLOTS
-# ─────────────────────────────────────────────
-
-_BG   = "#f8f9fb"
-_CARD = "#ffffff"
-_GRID = "#f1f3f5"
-_INK  = "#374151"
-
-def _theme(fig, axes):
-    fig.patch.set_facecolor(_BG)
-    axlist = axes if hasattr(axes, "__iter__") else [axes]
-    for ax in axlist:
-        ax.set_facecolor(_CARD)
-        ax.tick_params(colors=_INK, labelsize=9)
-        ax.xaxis.label.set_color(_INK)
-        ax.yaxis.label.set_color(_INK)
-        ax.title.set_color(_INK)
-        for sp in ax.spines.values():
-            sp.set_edgecolor("#e5e7eb")
-        ax.grid(color=_GRID, linewidth=0.8, linestyle="-", zorder=0)
-        ax.set_axisbelow(True)
-
-
-def fig_distribution(df) -> plt.Figure:
-    counts = (
-        df["Sentiment"]
-        .value_counts()
-        .reindex(["Positive", "Neutral", "Negative"], fill_value=0)
-    )
-    fig, ax = plt.subplots(figsize=(5, 3.4))
-    bars = ax.bar(
-        counts.index, counts.values,
-        color=[PALETTE[k] for k in counts.index],
-        width=0.42, zorder=3, edgecolor="none",
-    )
-    for b, v in zip(bars, counts.values):
-        ax.text(
-            b.get_x() + b.get_width() / 2,
-            b.get_height() + counts.max() * 0.025,
-            f"{v:,}", ha="center", va="bottom",
-            color=_INK, fontsize=10, fontweight="600",
-        )
-    ax.set_ylabel("Count", labelpad=6, fontsize=9)
-    ax.set_title("Sentiment Distribution", fontsize=11, fontweight="600", pad=10)
-    _theme(fig, ax)
-    fig.tight_layout()
-    return fig
-
-
-def fig_histogram(df) -> plt.Figure:
-    fig, ax = plt.subplots(figsize=(5, 3.4))
-    ax.hist(df["ensemble_score"], bins=40,
-            color="#6366f1", edgecolor="none", alpha=0.85, zorder=3)
-    ax.axvline( 0.05, color="#22c55e", lw=1.4, linestyle="--", label="Positive boundary")
-    ax.axvline(-0.05, color="#ef4444", lw=1.4, linestyle="--", label="Negative boundary")
-    ax.set_xlabel("Ensemble Score", labelpad=6, fontsize=9)
-    ax.set_ylabel("Frequency",      labelpad=6, fontsize=9)
-    ax.set_title("Score Distribution", fontsize=11, fontweight="600", pad=10)
-    ax.legend(framealpha=0, labelcolor=_INK, fontsize=8)
-    _theme(fig, ax)
-    fig.tight_layout()
-    return fig
-
-
-def fig_wordcloud(df, sentiment: str, cmap: str):
-    text = " ".join(
-        df.loc[df["Sentiment"] == sentiment, "_clean_"].dropna().tolist()
-    )
-    if not text.strip():
-        return None
-    wc = WordCloud(
-        width=560, height=260,
-        background_color="white",
-        colormap=cmap,
-        max_words=100,
-        collocations=False,
-        stopwords=STOPWORDS,
-    ).generate(text)
-    fig, ax = plt.subplots(figsize=(5, 2.6))
-    ax.imshow(wc, interpolation="bilinear")
-    ax.axis("off")
-    ax.set_title(
-        f"{sentiment} Keywords",
-        fontsize=11, fontweight="600", color=_INK, pad=8,
-    )
-    fig.patch.set_facecolor(_BG)
-    fig.tight_layout(pad=0)
-    return fig
-
-
-# ─────────────────────────────────────────────
-# PAGE INIT
+# PAGE CONFIG
 # ─────────────────────────────────────────────
 
 st.set_page_config(
@@ -342,54 +668,64 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+st.markdown(CSS, unsafe_allow_html=True)
 
-# Persist results across Streamlit reruns (including download clicks)
 if "results_df" not in st.session_state:
     st.session_state.results_df = None
 
 sia = load_sia()
 
 # ─────────────────────────────────────────────
-# HEADER
+# HERO
 # ─────────────────────────────────────────────
 
-st.markdown("<div class='page-title'>Sentiment Analyzer</div>", unsafe_allow_html=True)
-st.markdown(
-    "<div class='page-sub'>"
-    "Upload a dataset, choose your text column, and get sentiment scores with charts instantly."
-    "</div>",
-    unsafe_allow_html=True,
-)
-
-# ─────────────────────────────────────────────
-# UPLOAD RULES BOX
-# ─────────────────────────────────────────────
-
-st.markdown(
-    """
-    <div class="rule-box">
-        <b>Accepted formats</b>&nbsp;&nbsp;CSV &nbsp;&middot;&nbsp; XLSX &nbsp;&middot;&nbsp; XLS
-        &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
-        <b>Max file size</b>&nbsp;&nbsp;50 MB
-        &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
-        <b>Max rows</b>&nbsp;&nbsp;1,00,000
-        <br>
-        Your file must contain at least one column with text.
-        Every other column is preserved in the downloaded report.
+st.markdown("""
+<div class="hero">
+    <div class="hero-eyebrow">Natural Language Processing</div>
+    <div class="hero-title">Sentiment Analyzer</div>
+    <div class="hero-sub">
+        Upload a dataset, pick your text column, and get a full sentiment
+        breakdown — scores, charts, and a downloadable report.
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+</div>
+""", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# FILE UPLOAD
+# UPLOAD RULES
 # ─────────────────────────────────────────────
+
+st.markdown("<div class='label'>Requirements</div>", unsafe_allow_html=True)
+st.markdown("""
+<div class="info-strip">
+    <div class="info-cell">
+        <div class="ic-label">Accepted formats</div>
+        <div class="ic-value">CSV &nbsp;/&nbsp; XLSX &nbsp;/&nbsp; XLS</div>
+    </div>
+    <div class="info-cell">
+        <div class="ic-label">Max file size</div>
+        <div class="ic-value">50 MB</div>
+    </div>
+    <div class="info-cell">
+        <div class="ic-label">Max rows</div>
+        <div class="ic-value">1,00,000</div>
+    </div>
+    <div class="info-cell">
+        <div class="ic-label">Required column</div>
+        <div class="ic-value">Any text column</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+# UPLOAD
+# ─────────────────────────────────────────────
+
+st.markdown("<div class='label'>Upload</div>", unsafe_allow_html=True)
 
 uploaded = st.file_uploader(
-    "Upload your dataset",
+    "Drop your file here or click to browse",
     type=["csv", "xlsx", "xls"],
-    help="CSV, XLSX, or XLS — max 50 MB, max 1,00,000 rows",
+    label_visibility="collapsed",
 )
 
 if uploaded:
@@ -399,38 +735,46 @@ if uploaded:
         st.stop()
 
     st.success(
-        f"Loaded {len(df_raw):,} rows and {len(df_raw.columns)} columns "
-        f"from {uploaded.name}"
+        f"Loaded **{len(df_raw):,} rows** across **{len(df_raw.columns)} columns** "
+        f"from `{uploaded.name}`"
     )
 
-    # Auto-detect most likely text column
-    hints   = {"text", "review", "comment", "description", "body",
-               "content", "message", "feedback", "tweet", "post", "summary"}
+    # Auto-detect text column
+    hints = {"text", "review", "comment", "description", "body",
+             "content", "message", "feedback", "tweet", "post", "summary"}
     default = next(
         (c for c in df_raw.columns if any(h in c.lower() for h in hints)),
         df_raw.columns[0],
     )
 
-    col_pick, col_prev = st.columns([2, 3])
-    with col_pick:
-        st.markdown("<div class='section-label'>Select text column</div>", unsafe_allow_html=True)
+    st.markdown("<div class='label'>Column selection</div>", unsafe_allow_html=True)
+    col_a, col_b = st.columns([1, 2])
+
+    with col_a:
         text_col = st.selectbox(
-            "Text column",
+            "Choose the text column to analyse",
             options=df_raw.columns.tolist(),
             index=df_raw.columns.tolist().index(default),
             label_visibility="collapsed",
         )
-    with col_prev:
-        st.markdown("<div class='section-label'>Column preview</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<span style='font-family:DM Mono,monospace;font-size:0.72rem;"
+            f"color:#3d4560;'>{len(df_raw):,} rows will be scored</span>",
+            unsafe_allow_html=True,
+        )
+
+    with col_b:
+        st.markdown("<div class='preview-wrap'>", unsafe_allow_html=True)
         st.dataframe(
-            df_raw[[text_col]].head(4).rename(columns={text_col: "Sample text"}),
+            df_raw[[text_col]].head(5).rename(columns={text_col: "Sample text"}),
             use_container_width=True,
             hide_index=True,
         )
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button("Run Analysis", type="primary"):
+    if st.button("Run Analysis"):
         bar    = st.progress(0.0)
         status = st.empty()
         try:
@@ -439,70 +783,122 @@ if uploaded:
             st.error(f"Analysis failed: {exc}")
             st.code(traceback.format_exc())
             st.stop()
-        bar.progress(1.0)
+        bar.empty()
         status.empty()
 
 # ─────────────────────────────────────────────
-# RESULTS  — rendered from session_state so
-# a download click (which reruns the page) does
-# NOT wipe the results.
+# RESULTS
 # ─────────────────────────────────────────────
 
 if st.session_state.results_df is not None:
-    df = st.session_state.results_df
-
+    df    = st.session_state.results_df
     total = len(df)
     n_pos = (df["Sentiment"] == "Positive").sum()
     n_neu = (df["Sentiment"] == "Neutral").sum()
     n_neg = (df["Sentiment"] == "Negative").sum()
     avg   = df["ensemble_score"].mean()
 
-    # ── Summary metrics ──────────────────────
-    st.markdown("<div class='section-label'>Summary</div>", unsafe_allow_html=True)
+    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+    st.markdown("<div class='label'>Summary</div>", unsafe_allow_html=True)
 
-    def metric(label, value, sub, color):
-        return (
-            f"<div class='metric-card'>"
-            f"<div class='m-label'>{label}</div>"
-            f"<div class='m-value' style='color:{color};'>{value}</div>"
-            f"<div class='m-pct'>{sub}</div>"
-            f"</div>"
-        )
+    st.markdown(f"""
+    <div class="metric-grid">
+        <div class="mc tot">
+            <div class="mc-label">Total rows</div>
+            <div class="mc-value">{total:,}</div>
+            <div class="mc-sub">records analysed</div>
+        </div>
+        <div class="mc pos">
+            <div class="mc-label">Positive</div>
+            <div class="mc-value">{n_pos:,}</div>
+            <div class="mc-sub">{n_pos/total:.1%} of total</div>
+        </div>
+        <div class="mc neu">
+            <div class="mc-label">Neutral</div>
+            <div class="mc-value">{n_neu:,}</div>
+            <div class="mc-sub">{n_neu/total:.1%} of total</div>
+        </div>
+        <div class="mc neg">
+            <div class="mc-label">Negative</div>
+            <div class="mc-value">{n_neg:,}</div>
+            <div class="mc-sub">{n_neg/total:.1%} of total</div>
+        </div>
+        <div class="mc avg">
+            <div class="mc-label">Avg Score</div>
+            <div class="mc-value">{avg:+.3f}</div>
+            <div class="mc-sub">ensemble mean</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    m1, m2, m3, m4, m5 = st.columns(5)
-    with m1: st.markdown(metric("Total rows", f"{total:,}",   "analysed",         "#6366f1"), unsafe_allow_html=True)
-    with m2: st.markdown(metric("Positive",   f"{n_pos:,}",   f"{n_pos/total:.1%}", "#22c55e"), unsafe_allow_html=True)
-    with m3: st.markdown(metric("Neutral",    f"{n_neu:,}",   f"{n_neu/total:.1%}", "#f59e0b"), unsafe_allow_html=True)
-    with m4: st.markdown(metric("Negative",   f"{n_neg:,}",   f"{n_neg/total:.1%}", "#ef4444"), unsafe_allow_html=True)
-    with m5: st.markdown(metric("Avg Score",  f"{avg:+.3f}",  "ensemble mean",    "#374151"), unsafe_allow_html=True)
+    # ── Data table ──────────────────────────
+    st.markdown("<div class='label'>Results preview &mdash; first 25 rows</div>", unsafe_allow_html=True)
+    show_cols = [c for c in df.columns if c != "_clean_"]
+    st.dataframe(df[show_cols].head(25), use_container_width=True, hide_index=True)
 
-    # ── Results table ────────────────────────
-    st.markdown("<div class='section-label'>Results preview</div>", unsafe_allow_html=True)
-    show = [c for c in df.columns if c != "_clean_"]
-    st.dataframe(df[show].head(25), use_container_width=True, hide_index=True)
+    # ── Charts ──────────────────────────────
+    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+    st.markdown("<div class='label'>Charts</div>", unsafe_allow_html=True)
 
-    # ── Charts ───────────────────────────────
-    st.markdown("<div class='section-label'>Charts</div>", unsafe_allow_html=True)
+    tab1, tab2, tab3 = st.tabs(["Distribution", "Score breakdown", "Word clouds"])
 
-    c1, c2 = st.columns(2)
-    with c1: st.pyplot(fig_distribution(df), use_container_width=True)
-    with c2: st.pyplot(fig_histogram(df),    use_container_width=True)
+    with tab1:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.pyplot(chart_distribution(df), use_container_width=True)
+        with c2:
+            st.pyplot(chart_scatter(df), use_container_width=True)
 
-    w1, w2 = st.columns(2)
-    with w1:
-        fig = fig_wordcloud(df, "Positive", "Greens")
-        if fig: st.pyplot(fig, use_container_width=True)
-    with w2:
-        fig = fig_wordcloud(df, "Negative", "Reds")
-        if fig: st.pyplot(fig, use_container_width=True)
+    with tab2:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.pyplot(chart_histogram(df), use_container_width=True)
+        with c2:
+            st.pyplot(chart_confidence(df), use_container_width=True)
 
-    # ── Download ─────────────────────────────
-    st.markdown("<div class='section-label'>Download</div>", unsafe_allow_html=True)
+    with tab3:
+        c1, c2 = st.columns(2)
+        with c1:
+            fig = chart_wordcloud(df, "Positive", "YlGn")
+            if fig:
+                st.pyplot(fig, use_container_width=True)
+            else:
+                st.markdown(
+                    "<span style='color:#3d4560;font-size:0.82rem;'>"
+                    "No positive texts to display.</span>",
+                    unsafe_allow_html=True,
+                )
+        with c2:
+            fig = chart_wordcloud(df, "Negative", "OrRd")
+            if fig:
+                st.pyplot(fig, use_container_width=True)
+            else:
+                st.markdown(
+                    "<span style='color:#3d4560;font-size:0.82rem;'>"
+                    "No negative texts to display.</span>",
+                    unsafe_allow_html=True,
+                )
+
+    # ── Download ────────────────────────────
+    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+    st.markdown("<div class='label'>Export</div>", unsafe_allow_html=True)
 
     export = df[[c for c in df.columns if c != "_clean_"]]
-    st.download_button(
-        label="Download results as CSV",
-        data=export.to_csv(index=False).encode("utf-8"),
-        file_name="sentiment_results.csv",
-        mime="text/csv",
+
+    dl_col, _ = st.columns([1, 3])
+    with dl_col:
+        st.download_button(
+            label="Download results as CSV",
+            data=export.to_csv(index=False).encode("utf-8"),
+            file_name="sentiment_results.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    st.markdown(
+        "<span style='font-family:DM Mono,monospace;font-size:0.7rem;color:#2a3050;'>"
+        f"Model: VADER 55% + TextBlob 45% ensemble &nbsp;|&nbsp; "
+        f"{total:,} rows scored"
+        "</span>",
+        unsafe_allow_html=True,
     )
