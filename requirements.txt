@@ -1,24 +1,13 @@
-# ── Core data / NLP ───────────────────────────────────────────
 pandas>=2.0
 numpy>=1.24
 nltk>=3.8
 textblob>=0.18
 vaderSentiment>=3.3.2
-
-# ── Visualisation ─────────────────────────────────────────────
 matplotlib>=3.7
 seaborn>=0.13
 wordcloud>=1.9
-
-# ── File I/O ──────────────────────────────────────────────────
-openpyxl>=3.1          # .xlsx read/write
-xlrd>=2.0              # .xls (legacy Excel) read-only
-
-# ── Web app ───────────────────────────────────────────────────
+openpyxl>=3.1
+xlrd>=2.0
 streamlit>=1.35
-
-# ── Optional — deep learning model (DistilBERT) ───────────────
-# Uncomment the two lines below to enable the transformer toggle.
-# Adds ~500 MB download on first run.
-# transformers>=4.40
-# torch>=2.2
+transformers>=4.40
+torch>=2.2
