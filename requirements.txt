@@ -9,5 +9,3 @@ wordcloud>=1.9
 openpyxl>=3.1
 xlrd>=2.0
 streamlit>=1.35
-transformers>=4.40
-torch>=2.2
