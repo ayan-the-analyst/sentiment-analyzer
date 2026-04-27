@@ -32,7 +32,7 @@ CSS = """
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, [class*="css"] {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Times New Roman", Times, serif;
     font-size: 15px;
 }
 
@@ -80,7 +80,7 @@ section[data-testid="stSidebar"] { display: none; }
 }
 
 .hero-eyebrow {
-    font-family: 'DM Mono', monospace;
+    font-family: "Times New Roman", Times, serif;
     font-size: 0.68rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -88,7 +88,7 @@ section[data-testid="stSidebar"] { display: none; }
     margin-bottom: 0.7rem;
 }
 .hero-title {
-    font-family: 'Syne', sans-serif;
+    font-family: "Times New Roman", Times, serif;
     font-size: 3rem;
     font-weight: 800;
     line-height: 1;
@@ -106,7 +106,7 @@ section[data-testid="stSidebar"] { display: none; }
 
 /* ── Section label ───────────────────────── */
 .label {
-    font-family: 'DM Mono', monospace;
+    font-family: "Times New Roman", Times, serif;
     font-size: 0.65rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
@@ -131,7 +131,7 @@ section[data-testid="stSidebar"] { display: none; }
 }
 .info-cell:last-child { border-right: none; }
 .info-cell .ic-label {
-    font-family: 'DM Mono', monospace;
+    font-family: "Times New Roman", Times, serif;
     font-size: 0.6rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -167,7 +167,7 @@ section[data-testid="stSidebar"] { display: none; }
     border: 1px solid #1e2330 !important;
     border-radius: 8px !important;
     color: #c9d1e0 !important;
-    font-family: 'Outfit', sans-serif !important;
+    font-family: "Times New Roman", Times, serif;
     font-size: 0.88rem !important;
     transition: border-color 0.2s;
 }
@@ -199,7 +199,7 @@ section[data-testid="stSidebar"] { display: none; }
     color: #0c0e14 !important;
     border: none !important;
     border-radius: 8px !important;
-    font-family: 'Outfit', sans-serif !important;
+    font-family: "Times New Roman", Times, serif;
     font-weight: 600 !important;
     font-size: 0.88rem !important;
     padding: 0.6rem 2rem !important;
@@ -219,7 +219,7 @@ section[data-testid="stSidebar"] { display: none; }
     color: #e8a020 !important;
     border: 1.5px solid #e8a020 !important;
     border-radius: 8px !important;
-    font-family: 'Outfit', sans-serif !important;
+    font-family: "Times New Roman", Times, serif;
     font-weight: 500 !important;
     font-size: 0.85rem !important;
     padding: 0.55rem 1.6rem !important;
@@ -290,7 +290,7 @@ section[data-testid="stSidebar"] { display: none; }
 .mc.avg::after { background: #38bdf8; }
 
 .mc-label {
-    font-family: 'DM Mono', monospace;
+    font-family: "Times New Roman", Times, serif;
     font-size: 0.6rem;
     letter-spacing: 0.13em;
     text-transform: uppercase;
@@ -298,7 +298,7 @@ section[data-testid="stSidebar"] { display: none; }
     margin-bottom: 0.55rem;
 }
 .mc-value {
-    font-family: 'Syne', sans-serif;
+    font-family: "Times New Roman", Times, serif;
     font-size: 2rem;
     font-weight: 700;
     line-height: 1;
@@ -332,7 +332,7 @@ section[data-testid="stSidebar"] { display: none; }
 [data-baseweb="tab"] {
     background: transparent !important;
     color: #3d4560 !important;
-    font-family: 'Outfit', sans-serif !important;
+    font-family: "Times New Roman", Times, serif;
     font-size: 0.82rem !important;
     font-weight: 500 !important;
     padding: 0.6rem 1.2rem !important;
@@ -615,7 +615,7 @@ def analyse(df, col, sia, bar, status):
         if (i + 1) % 500 == 0 or (i + 1) == n:
             bar.progress((i + 1) / n)
             status.markdown(
-                f"<span style='font-family:DM Mono,monospace;font-size:0.75rem;"
+                f"<span style='font-family: Times New Roman, Times, serif;font-size:0.75rem;"
                 f"color:#3d4560;'>{i + 1:,} / {n:,} rows processed</span>",
                 unsafe_allow_html=True,
             )
@@ -758,7 +758,7 @@ if uploaded:
             label_visibility="collapsed",
         )
         st.markdown(
-            f"<span style='font-family:DM Mono,monospace;font-size:0.72rem;"
+            f"<span style='font-family: Times New Roman, Times, serif;font-size:0.72rem;"
             f"color:#3d4560;'>{len(df_raw):,} rows will be scored</span>",
             unsafe_allow_html=True,
         )
@@ -896,7 +896,7 @@ if st.session_state.results_df is not None:
         )
 
     st.markdown(
-        "<span style='font-family:DM Mono,monospace;font-size:0.7rem;color:#2a3050;'>"
+        "<span style='font-family: Times New Roman, Times, serif;font-size:0.7rem;color:#2a3050;'>"
         f"Model: VADER 55% + TextBlob 45% ensemble &nbsp;|&nbsp; "
         f"{total:,} rows scored"
         "</span>",
